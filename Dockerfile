@@ -9,6 +9,7 @@ RUN set -x \
 	&& apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/* \
 	&& wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
 	&& wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" \
+	&& wget -O /tmp/rabbitmq_delayed_message_exchange-0.0.1.ez https://bintray.com/rabbitmq/community-plugins/download_file\?file_path\=rabbitmq_delayed_message_exchange-0.0.1.ez \
 	&& export GNUPGHOME="$(mktemp -d)" \
 	&& gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
 	&& gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
@@ -74,7 +75,9 @@ RUN ln -sf /var/lib/rabbitmq/.erlang.cookie /root/
 
 RUN ln -sf /usr/lib/rabbitmq/lib/rabbitmq_server-$RABBITMQ_VERSION/plugins /plugins
 
-RUN rabbitmq-plugins enable --offline rabbitmq_management
+RUN mv /tmp/rabbitmq_delayed_message_exchange-0.0.1.ez /plugins/
+
+RUN rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_delayed_message_exchange
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat
