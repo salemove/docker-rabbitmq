@@ -50,8 +50,8 @@ ENV RABBITMQ_LOGS=- RABBITMQ_SASL_LOGS=-
 RUN apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 0A9AF2115F4687BD29803A206B73A36E6026DFCA
 RUN echo 'deb http://www.rabbitmq.com/debian testing main' > /etc/apt/sources.list.d/rabbitmq.list
 
-ENV RABBITMQ_VERSION 3.6.5
-ENV RABBITMQ_DEBIAN_VERSION 3.6.5-1
+ENV RABBITMQ_VERSION 3.6.6
+ENV RABBITMQ_DEBIAN_VERSION 3.6.6-1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		rabbitmq-server=$RABBITMQ_DEBIAN_VERSION \
@@ -60,14 +60,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # /usr/sbin/rabbitmq-server has some irritating behavior, and only exists to "su - rabbitmq /usr/lib/rabbitmq/bin/rabbitmq-server ..."
 ENV PATH /usr/lib/rabbitmq/bin:$PATH
 
-RUN echo '[ { rabbit, [ { loopback_users, [ ] } ] } ].' > /etc/rabbitmq/rabbitmq.config
-
 # set home so that any `--user` knows where to put the erlang cookie
 ENV HOME /var/lib/rabbitmq
 
 RUN mkdir -p /var/lib/rabbitmq /etc/rabbitmq \
+	&& echo '[ { rabbit, [ { loopback_users, [ ] } ] } ].' > /etc/rabbitmq/rabbitmq.config \
 	&& chown -R rabbitmq:rabbitmq /var/lib/rabbitmq /etc/rabbitmq \
-	&& chmod 777 /var/lib/rabbitmq /etc/rabbitmq
+	&& chmod -R 777 /var/lib/rabbitmq /etc/rabbitmq
 VOLUME /var/lib/rabbitmq
 
 # add a symlink to the .erlang.cookie in /root so we can "docker exec rabbitmqctl ..." without gosu
