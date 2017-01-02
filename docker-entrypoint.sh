@@ -36,6 +36,12 @@ rabbitConfigKeys=(
 	default_vhost
 	hipe_compile
 	vm_memory_high_watermark
+	cluster_partition_handling
+	delegate_count
+	fhc_read_buffering
+	fhc_write_buffering
+	queue_index_embed_msgs_below
+	queue_index_max_journal_entries
 )
 fileConfigKeys=(
 	management_ssl_cacertfile
@@ -179,7 +185,7 @@ rabbit_env_config() {
 
 		local rawVal=
 		case "$conf" in
-			verify|fail_if_no_peer_cert)
+			verify|fail_if_no_peer_cert|cluster_partition_handling|delegate_count|fhc_read_buffering|fhc_write_buffering|queue_index_embed_msgs_below|queue_index_max_journal_entries)
 				[ "$val" ] || continue
 				rawVal="$val"
 				;;
