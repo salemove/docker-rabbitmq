@@ -75,7 +75,7 @@ RUN ln -sf /var/lib/rabbitmq/.erlang.cookie /root/
 RUN ln -sf /usr/lib/rabbitmq/lib/rabbitmq_server-$RABBITMQ_VERSION/plugins /plugins
 
 RUN mv /tmp/rabbitmq_delayed_message_exchange-0.0.1.ez /plugins/
-COPY autocluster-0.6.1-b2c17e6.ez /plugins/autocluster-0.6.1.ez
+COPY autocluster-0.6.1-b2c17e6_patched.ez /plugins/autocluster-0.6.1.ez
 
 RUN rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_delayed_message_exchange autocluster
 
