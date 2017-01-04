@@ -81,7 +81,7 @@ for conf in "${allConfigKeys[@]}"; do
 		case "$conf" in
 			ssl_*) haveSslConfig=1 ;;
 			management_ssl_*) haveManagementSslConfig=1 ;;
-			management_load_definitions) valManagementLoadDefinitions='"'"$val"'"';;
+			management_load_definitions) valManagementLoadDefinitions="$val" ;;
 		esac
 	fi
 done
@@ -310,8 +310,10 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$haveConfig" ]; then
 		)
 
 		if [ -n "$valManagementLoadDefinitions" ]; then
+			perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' \
+				$valManagementLoadDefinitions > /etc/rabbitmq/definitions.json
 			rabbitManagementConfig+=(
-				"{ load_definitions, $valManagementLoadDefinitions}"
+				'{ load_definitions, "/etc/rabbitmq/definitions.json" }'
 			)
 		fi
 
