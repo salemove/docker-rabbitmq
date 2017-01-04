@@ -19,6 +19,8 @@ fi
 : "${RABBITMQ_MANAGEMENT_SSL_CERTFILE:=$RABBITMQ_SSL_CERTFILE}"
 : "${RABBITMQ_MANAGEMENT_SSL_KEYFILE:=$RABBITMQ_SSL_KEYFILE}"
 
+: "${RABBITMQ_MANAGEMENT_LOAD_DEFINITIONS:=}"
+
 # https://www.rabbitmq.com/configure.html
 sslConfigKeys=(
 	cacertfile
@@ -29,6 +31,7 @@ sslConfigKeys=(
 )
 managementConfigKeys=(
 	"${sslConfigKeys[@]/#/ssl_}"
+	load_definitions
 )
 rabbitConfigKeys=(
 	default_pass
@@ -47,6 +50,7 @@ fileConfigKeys=(
 	management_ssl_cacertfile
 	management_ssl_certfile
 	management_ssl_keyfile
+	management_load_definitions
 	ssl_cacertfile
 	ssl_certfile
 	ssl_keyfile
@@ -68,6 +72,7 @@ declare -A configDefaults=(
 haveConfig=
 haveSslConfig=
 haveManagementSslConfig=
+valManagementLoadDefinitions=
 for conf in "${allConfigKeys[@]}"; do
 	var="RABBITMQ_${conf^^}"
 	val="${!var:-}"
@@ -76,6 +81,7 @@ for conf in "${allConfigKeys[@]}"; do
 		case "$conf" in
 			ssl_*) haveSslConfig=1 ;;
 			management_ssl_*) haveManagementSslConfig=1 ;;
+			management_load_definitions) valManagementLoadDefinitions='"'"$val"'"';;
 		esac
 	fi
 done
@@ -299,8 +305,18 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$haveConfig" ]; then
 			)
 		fi
 
+		rabbitManagementConfig+=(
+			"{ listener, $(rabbit_array "${rabbitManagementListenerConfig[@]}") }"
+		)
+
+		if [ -n "$valManagementLoadDefinitions" ]; then
+			rabbitManagementConfig+=(
+				"{ load_definitions, $valManagementLoadDefinitions}"
+			)
+		fi
+
 		fullConfig+=(
-			"{ rabbitmq_management, $(rabbit_array "{ listener, $(rabbit_array "${rabbitManagementListenerConfig[@]}") }") }"
+			"{ rabbitmq_management, $(rabbit_array "${rabbitManagementConfig[@]}") }"
 		)
 	fi
 
