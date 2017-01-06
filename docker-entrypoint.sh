@@ -310,8 +310,11 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$haveConfig" ]; then
 		)
 
 		if [ -n "$valManagementLoadDefinitions" ]; then
+			# Expand all instance of $VAR or ${VAR} to their environment values
+			# Regex source: http://stackoverflow.com/questions/2914220/bash-templating-how-to-build-configuration-files-from-templates-with-bash/25019138#25019138
 			perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' \
 				$valManagementLoadDefinitions > /etc/rabbitmq/definitions.json
+
 			rabbitManagementConfig+=(
 				'{ load_definitions, "/etc/rabbitmq/definitions.json" }'
 			)
