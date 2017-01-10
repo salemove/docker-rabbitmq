@@ -19,6 +19,8 @@ fi
 : "${RABBITMQ_MANAGEMENT_SSL_CERTFILE:=$RABBITMQ_SSL_CERTFILE}"
 : "${RABBITMQ_MANAGEMENT_SSL_KEYFILE:=$RABBITMQ_SSL_KEYFILE}"
 
+: "${RABBITMQ_MANAGEMENT_LOAD_DEFINITIONS:=}"
+
 # https://www.rabbitmq.com/configure.html
 sslConfigKeys=(
 	cacertfile
@@ -29,6 +31,7 @@ sslConfigKeys=(
 )
 managementConfigKeys=(
 	"${sslConfigKeys[@]/#/ssl_}"
+	load_definitions
 )
 rabbitConfigKeys=(
 	default_pass
@@ -36,11 +39,18 @@ rabbitConfigKeys=(
 	default_vhost
 	hipe_compile
 	vm_memory_high_watermark
+	cluster_partition_handling
+	delegate_count
+	fhc_read_buffering
+	fhc_write_buffering
+	queue_index_embed_msgs_below
+	queue_index_max_journal_entries
 )
 fileConfigKeys=(
 	management_ssl_cacertfile
 	management_ssl_certfile
 	management_ssl_keyfile
+	management_load_definitions
 	ssl_cacertfile
 	ssl_certfile
 	ssl_keyfile
@@ -62,6 +72,7 @@ declare -A configDefaults=(
 haveConfig=
 haveSslConfig=
 haveManagementSslConfig=
+valManagementLoadDefinitions=
 for conf in "${allConfigKeys[@]}"; do
 	var="RABBITMQ_${conf^^}"
 	val="${!var:-}"
@@ -70,6 +81,7 @@ for conf in "${allConfigKeys[@]}"; do
 		case "$conf" in
 			ssl_*) haveSslConfig=1 ;;
 			management_ssl_*) haveManagementSslConfig=1 ;;
+			management_load_definitions) valManagementLoadDefinitions="$val" ;;
 		esac
 	fi
 done
@@ -179,7 +191,7 @@ rabbit_env_config() {
 
 		local rawVal=
 		case "$conf" in
-			verify|fail_if_no_peer_cert)
+			verify|fail_if_no_peer_cert|cluster_partition_handling|delegate_count|fhc_read_buffering|fhc_write_buffering|queue_index_embed_msgs_below|queue_index_max_journal_entries)
 				[ "$val" ] || continue
 				rawVal="$val"
 				;;
@@ -293,8 +305,23 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$haveConfig" ]; then
 			)
 		fi
 
+		rabbitManagementConfig+=(
+			"{ listener, $(rabbit_array "${rabbitManagementListenerConfig[@]}") }"
+		)
+
+		if [ -n "$valManagementLoadDefinitions" ]; then
+			# Expand all instance of $VAR or ${VAR} to their environment values
+			# Regex source: http://stackoverflow.com/questions/2914220/bash-templating-how-to-build-configuration-files-from-templates-with-bash/25019138#25019138
+			perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' \
+				$valManagementLoadDefinitions > /etc/rabbitmq/definitions.json
+
+			rabbitManagementConfig+=(
+				'{ load_definitions, "/etc/rabbitmq/definitions.json" }'
+			)
+		fi
+
 		fullConfig+=(
-			"{ rabbitmq_management, $(rabbit_array "{ listener, $(rabbit_array "${rabbitManagementListenerConfig[@]}") }") }"
+			"{ rabbitmq_management, $(rabbit_array "${rabbitManagementConfig[@]}") }"
 		)
 	fi
 
@@ -316,4 +343,9 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 	export RABBITMQ_CTL_ERL_ARGS="$RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS"
 fi
 
+if [ ! -z ${K8S_ADDRESS_TYPE+x} ] && [ "$K8S_ADDRESS_TYPE" == "hostname" ]; then
+	export RABBITMQ_NODENAME="rabbit@${HOSTNAME}${K8S_HOSTNAME_SUFFIX:-}"
+else
+	export RABBITMQ_NODENAME="rabbit@$(hostname --ip-address)"
+fi
 exec "$@"
