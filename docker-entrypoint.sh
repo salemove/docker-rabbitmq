@@ -21,6 +21,9 @@ fi
 
 : "${RABBITMQ_MANAGEMENT_LOAD_DEFINITIONS:=}"
 
+: "${K8S_HOSTNAME_SUFFIX:=}"
+: "${CLUSTER_WITH:=}"
+
 # https://www.rabbitmq.com/configure.html
 sslConfigKeys=(
 	cacertfile
@@ -344,5 +347,19 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 fi
 
 export RABBITMQ_NODENAME="rabbit@${HOSTNAME}${K8S_HOSTNAME_SUFFIX:-}"
+
+# Add node to cluster if requested
+# Do not try to cluster against itself
+# If node already belongs to a cluster then we can skip these statements to speed up boot process
+if  [ -n "$CLUSTER_WITH" ] && [ "$CLUSTER_WITH" != "$RABBITMQ_NODENAME" ] && \
+    ( [ ! -f /var/lib/rabbitmq/mnesia/$RABBITMQ_NODENAME/cluster_nodes.config ] || \
+      [ "$(cat /var/lib/rabbitmq/mnesia/$RABBITMQ_NODENAME/cluster_nodes.config)" == "{['$RABBITMQ_NODENAME'],['$RABBITMQ_NODENAME']}." ] ) ; then
+    rabbitmq-server -detached
+    sleep 5
+    rabbitmqctl stop_app
+    rabbitmqctl join_cluster "$CLUSTER_WITH"
+    rabbitmqctl stop
+    sleep 5
+fi
 
 exec "$@"
