@@ -343,9 +343,6 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 	export RABBITMQ_CTL_ERL_ARGS="$RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS"
 fi
 
-if [ ! -z ${K8S_ADDRESS_TYPE+x} ] && [ "$K8S_ADDRESS_TYPE" == "hostname" ]; then
-	export RABBITMQ_NODENAME="rabbit@${HOSTNAME}${K8S_HOSTNAME_SUFFIX:-}"
-else
-	export RABBITMQ_NODENAME="rabbit@$(hostname --ip-address)"
-fi
+export RABBITMQ_NODENAME="rabbit@${HOSTNAME}${K8S_HOSTNAME_SUFFIX:-}"
+
 exec "$@"
